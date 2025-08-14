@@ -18,4 +18,4 @@ Run fruit_and_vegetable_recognition2.py(command:python3 fruit_and_vegetable_reco
 The predicted label and its confidence will be shown on the image.
 Required libraries to install jetson_inference jetson_utils argparse os sys datetime
 
-[View a video explanation here](video lin
+[View a video explanation here](video link here)
