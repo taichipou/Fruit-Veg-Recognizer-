@@ -1,12 +1,12 @@
-Fruit-Veg-Recognizer
+#Fruit-Veg-Recognizer
 This project lets NVIDIA Jetson look at a photo and tell what fruit or vegetable is in it. The AI guesses the name and the confidence. It then writes that info right on the picture and saves a new JPG file for you. Every time you run it, you get a fresh, labeled image.
 
 
 
-The Algorithm
+#The Algorithm
 After the AI learned the unique features of each fruit and vegetable by training on many fruit and vegetable images, the AI loads an image with jetson_utils.loadImage(), initializes jetson_inference.imageNet with ResNet-18 model and optional --model/--labels, classifies to get the top class and confidence, overlays filename | network | class (confidence) using cudaFont, then saves the labeled JPG and prints a short summary.
 
-Running this project
+#Running this project
 Login into your Nano and open up your python terminal.
 Click on code and download as a .zip file, upload and unzip in nano under the jetson-inference/python/training/classification directory
 change directory back to jetson-inference(command:cd jetson-inference)
