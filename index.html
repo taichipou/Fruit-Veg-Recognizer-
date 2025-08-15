@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Fruit & Vegetable Recognition</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --ok:#16a34a; --err:#ef4444; }
+    *{box-sizing:border-box} body{margin:0;font:16px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial;color:#e5e7eb;background:var(--bg)}
+    .wrap{max-width:920px;margin:40px auto;padding:0 16px}
+    .card{background:var(--card);border-radius:18px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+    h1{margin:0 0 10px;font-weight:700;letter-spacing:.3px}
+    p.sub{margin:0 0 16px;color:var(--muted)}
+    .uploader{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:10px 0 18px}
+    input[type=file]{padding:10px;background:#0b1220;border:1px solid #1f2937;border-radius:12px;color:#cbd5e1}
+    button{border:0;border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;background:#2563eb;color:#fff}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .row .pane{background:#0b1220;border:1px solid #1f2937;border-radius:12px;padding:12px}
+    img{width:100%;height:auto;border-radius:8px;display:block;background:#0b1220}
+    .meta{margin-top:10px;color:#cbd5e1;font-size:14px}
+    .kvs{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;margin:8px 0}
+    .kvs div:first-child{color:var(--muted)}
+    .badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#0b1220;border:1px solid #1f2937;font-size:12px;color:#cbd5e1}
+    .status{margin-top:10px;font-weight:700}
+    .ok{color:var(--ok)} .err{color:var(--err)} .muted{color:var(--muted)}
+    .spinner{width:22px;height:22px;border:3px solid #1f2937;border-top-color:#e5e7eb;border-radius:50%;animation:spin 1s linear infinite;display:inline-block;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media (max-width:860px){.row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Fruit & Vegetable Recognition</h1>
+      <p class="sub">Upload an image. We’ll run your ResNet-18 ONNX on Jetson and show the predicted <b>label</b> and <b>confidence</b>.<br>
+        <span class="muted">（画像をアップロード → 予測ラベルと確信度を表示し、ラベル入りJPGも出力）</span></p>
+
+      <div class="uploader">
+        <input id="file" type="file" accept=".jpg,.jpeg,.png,.bmp" />
+        <button id="btn" disabled>Classify</button>
+        <span id="msg" class="status muted">Choose an image to begin.</span>
+      </div>
+
+      <div class="row">
+        <div class="pane">
+          <div class="badge">Input</div>
+          <img id="preview" alt="Input preview" />
+          <div class="meta" id="meta-in"></div>
+        </div>
+        <div class="pane">
+          <div class="badge">Output (labeled)</div>
+          <img id="labeled" alt="Labeled output will appear here" />
+          <div class="meta" id="meta-out"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fileEl = document.getElementById('file');
+    const btnEl  = document.getElementById('btn');
+    const msgEl  = document.getElementById('msg');
+    const previewEl = document.getElementById('preview');
+    const labeledEl = document.getElementById('labeled');
+    const metaInEl  = document.getElementById('meta-in');
+    const metaOutEl = document.getElementById('meta-out');
+
+    let chosenFile = null;
+
+    fileEl.addEventListener('change', (e) => {
+      const f = e.target.files?.[0];
+      if (!f) { btnEl.disabled = true; msgEl.textContent = "Choose an image to begin."; return; }
+      chosenFile = f;
+      btnEl.disabled = false;
+      msgEl.textContent = "Ready to classify.";
+      // Preview
+      const url = URL.createObjectURL(f);
+      previewEl.src = url;
+      metaInEl.textContent = `${f.name} • ${(f.size/1024).toFixed(1)} KB`;
+      labeledEl.removeAttribute('src');
+      metaOutEl.textContent = '';
+    });
+
+    btnEl.addEventListener('click', async () => {
+      if (!chosenFile) return;
+      btnEl.disabled = true;
+      msgEl.innerHTML = `<span class="spinner"></span> Processing…`;
+      try {
+        const fd = new FormData();
+        fd.append('image', chosenFile);
+        const res = await fetch('/api/classify', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Unknown error');
+
+        // Show results
+        labeledEl.src = data.output_image_url + `?t=${Date.now()}`; // cache-bust
+        metaOutEl.innerHTML = `
+          <div class="kvs">
+            <div>Label</div><div>${data.label} (class #${data.class_idx})</div>
+            <div>Confidence</div><div>${data.confidence}%</div>
+            <div>Network</div><div>${data.network}</div>
+            <div>Saved</div><div><a href="${data.output_image_url}" target="_blank" style="color:#93c5fd;">open JPG</a></div>
+          </div>
+        `;
+        msgEl.innerHTML = `<span class="ok">Done.</span>`;
+      } catch (err) {
+        console.error(err);
+        msgEl.innerHTML = `<span class="err">Error: ${err.message}</span>`;
+      } finally {
+        btnEl.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
